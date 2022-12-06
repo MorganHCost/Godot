@@ -1,0 +1,79 @@
+extends KinematicBody
+
+# Variables, Export = can see on inspector, Onready pulls diff body part
+const MIN_CAMERA_ANGLE = -70
+const MAX_CAMERA_ANGLE = 70
+export var GRAVITY: float = -20
+export var camera_sesitivity: float = 0.08
+var speed: float = 10.0
+export var default_move_speed: float = 10.0
+export var crouch_move_speed: float = 3.0
+var crouch_speed = 20.0
+var default_height = 1.5
+var crouch_height = .5
+
+export var acceleration: float = 6.0
+export var jump_impulse: float = 12.0
+var velocity: Vector3 = Vector3.ZERO
+
+onready var head: Spatial = $Head
+onready var pcap = $Player_Hitbox 
+onready var pmes = $Body
+
+func _ready():
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _process(delta):
+	
+	
+	speed = default_move_speed
+	
+	#Crouching
+	if Input.is_action_pressed("crouch"):
+		pcap.shape.height -= crouch_speed * delta
+	else:
+		 pcap.shape.height += crouch_speed * delta
+	pcap.shape.height = clamp (pcap.shape.height, crouch_height, default_height)
+	
+	
+
+func _physics_process(delta):
+	var movement = _get_movement_direction()
+
+#Movement slowdown
+	velocity.x = lerp(velocity.x,movement.x * speed, acceleration * delta)
+	velocity.z = lerp(velocity.z,movement.z * speed, acceleration * delta)
+	velocity.y += GRAVITY * delta
+	velocity = move_and_slide(velocity,Vector3.UP)
+#                         Adding Vector.UP to moveandslide tells game which direction is down
+#camera stuff
+func _unhandled_input(event):
+	if event is InputEventMouseMotion:
+		_handle_camera_rotation(event)
+
+
+func _handle_camera_rotation(event):
+	rotate_y(deg2rad(-event.relative.x * camera_sesitivity))	
+	head.rotate_x(deg2rad(-event.relative.y * camera_sesitivity))
+	head.rotation.x = clamp(head.rotation.x, deg2rad(MIN_CAMERA_ANGLE), deg2rad(MAX_CAMERA_ANGLE))
+
+#Finds direction to move based off of keys
+func _get_movement_direction():
+	var direction = Vector3.DOWN
+	if Input.is_action_just_pressed("ui_up"):
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if Input.is_action_just_pressed("ui_down"):
+		Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if Input.is_action_pressed("forward"):
+		direction -= transform.basis.z
+	if Input.is_action_pressed("back"):
+		direction += transform.basis.z
+	if Input.is_action_pressed("left"):
+		direction -= transform.basis.x
+	if Input.is_action_pressed("right"):
+		direction += transform.basis.x
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		velocity.y = jump_impulse
+	
+	return direction.normalized()
